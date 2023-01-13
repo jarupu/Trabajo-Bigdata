@@ -1,0 +1,332 @@
+---
+title: "Análisis de la Industria Musical: Spotify"
+description: |
+  Analizamos los números de Spotify y el alcance de ciertas canciones y artistas de la industria actual.
+author: 
+- name: Javier Ruiz (jaruizpu@alumni.uv.es) 
+
+date: 2023-1-13                      
+categories: [trabajo Big Data, Spotify]   
+image: "./imagenes/my_favicon.png" 
+title-block-banner: true #- {true, false, "green","#AA0000"}
+title-block-banner-color: "#F0FFFF"    #-"#FFFFFF" 
+toc: true
+toc-location: left
+toc-depth: 3
+smooth-scroll: true
+format: 
+  html:
+    mainfont: serif
+    #backgroundcolor: "#F1F3F4"
+    #embed-resources: true
+    link-external-newwindow: true
+    #css: ./assets/my_css_file.css   #- CUIDADO!!!!
+code-tools: true
+code-link: true
+---
+```{r options-setup, include = FALSE}
+options(scipen = 999) #- para quitar la notación científica
+options("yaml.eval.expr" = TRUE) 
+```
+
+# Introducción
+
+```{r, eval= TRUE, echo = FALSE, warning = FALSE}
+library(meme)
+fotospoti <- "./imagenes/spotify-muziek.jpg"
+meme(fotospoti)
+```
+
+Spotify es una empresa de servicios multimedia sueca fundada en 2006, cuyo producto es la aplicación homónima empleada para la reproducción de música vía streaming. Su modelo de negocio es el denominado freemium, que consiste en ofrecer un servicio gratuito básico y con publicidad y otro con características adicionales (como una mejor calidad de audio, libre de publicidad y de uso ilimitado) a través de una suscripción de pago.
+  
+  
+  La música que está en la plataforma se puede buscar mediante temas, como el artista que la compuso, el álbum o el género al que pertenece, y puede ordenarse por listas de reproducción o etiquetas de grabación. Los usuarios pueden crear, editar y compartir estas listas en las redes sociales y crearlas además en conjunto con otros usuarios.
+
+
+  
+Para obtener más información, consulte la [página oficial de Spotify](https://www.spotify.com).
+
+
+# Datos del trabajo
+
+::: {.panel-tabset}
+
+## Datos usados
+
+Este conjunto de datos que es webscrapped y acumulado todas las métricas de flujo de cada artista y sus respectivas canciones. Estos datos los he extraido de [Kaggle](https://www.kaggle.com/), que es una plataforma web que reúne la comunidad Data Science más grande del mundo, con más de 536 mil miembros activos.
+
+
+## Códigos
+
+```{r}
+#| code-fold: true
+
+#ESTOS SON LOS PAQUETES QUE HEMOS UTILIZADO A LO LARGO DEL TRABAJO
+library(meme)
+library(tidyr)
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+library(highcharter)
+library(dplyr)
+library(ggforce)
+library(plotly)
+library(readxl)
+library(tmap) 
+library(sf) 
+library(dplyr) 
+library(readxl)
+library(RColorBrewer)
+library(wordcloud2)
+library(tm)
+library(treemap)
+library(treemapify) 
+library(ggThemeAssist)
+```
+
+:::
+
+# Canciones más escuchadas
+### (Total de streams) 
+Estos son los temas que más lo han 'petado' en la historia de Spotify.
+
+
+```{r}
+#| code-fold: true
+#| 
+# PRIMERO CARGAMOS LOS DATOS QUE POSTERIORMENTE TRANSFORMAREMOS PARA PODER ANALIZARLOS MEJOR
+
+top10mil <- read_csv("./datos/Spotify_final_dataset.csv")
+
+
+#AHORA LOS TRANSFORMAMOS 
+top10mil <- top10mil %>% dplyr::rename(Artist_Name = `Artist Name`, Song_Name = `Song Name`, Total_Streams = `Total Streams`)
+
+
+topsongs <- top10mil %>%
+  select(`Total_Streams`, `Artist_Name`, `Song_Name`) %>%  slice_max(n=10, order_by = `Total_Streams`, with_ties = TRUE)
+
+
+tops <- ggplot(topsongs, aes(x=reorder(Song_Name, Total_Streams), y=Total_Streams, fill = Artist_Name)) + geom_bar(stat="identity",position="dodge") + coord_flip() + labs(title = "TOP 10", 
+                    subtitle = "Canciones más escuchadas en Spotify",
+                    x = "Canciones",
+                    y = "Número de Streams",
+                    color = "Artistas") + theme(axis.line = element_line(linetype = "solid"),
+    axis.text = element_text(family = "serif"),
+    plot.title = element_text(size = 16),
+    panel.background = element_rect(fill = "white"),
+    plot.background = element_rect(fill = "white",
+        colour = NA), legend.background = element_rect(fill = "gray90"))
+tops +labs(fill = "Artistas")
+
+```
+
+El track más escuchado es la banda sonora de *Sunflower Spider-Man: Into the Spider-Verse* con un total de 883.369.738 streams. La canción está protagonizada por Post Malone (tambien colabora Swae Lee) quién además tiene otra canción en el top 5 de más escuchas : *Rockstar*.
+
+
+# Artistas más escuchados
+
+Es relativamente fácil que un sencillo se trasfrome en un éxito, sin embargo lo complicado es mantenerse en esa linea consiguiendo que la mayoria de tus temas gusten a un gran número de personas. Estos son los artistas que mas reproducciones acumulan en todas sus canciones:
+
+
+```{r}
+#| code-fold: true
+topartist <- top10mil %>% 
+  group_by(Artist_Name) %>% 
+  summarise(Streams = sum(Total_Streams)) %>%
+  slice_max(n=100, order_by = `Streams`, with_ties = TRUE)
+
+p11 <- hchart(topartist , "pie", hcaes(x = Artist_Name, y = Streams )) %>%
+  hc_title(text = "Artistas más escuchados") %>%
+     hc_add_theme(hc_theme_elementary())
+
+p11
+```
+
+
+Drake acumula 9 billones de streams muy por encima del resto de artistas. Por ponerlo en consonancia, Post Malone que es el segundo en este ranking (quien tiene 2 de las canciones más escuchadas del histórico) tan solo tiene 7 billones de escuchas.
+
+
+# Cuanto dinero han generado los artistas (Histórico)
+
+Se estima que la plataforma musical paga a los artistas una media de $0.004 por reproducción. Por tanto, la estimación de los ingresos que han alcanzado algunos artistas seria la siguiente:
+
+```{r}
+#| code-fold: true
+topartistcompleto <- top10mil %>% 
+  group_by(Artist_Name) %>% 
+  summarise(Streams = sum(Total_Streams)) %>%
+  arrange(-Streams)
+
+topartistcompleto2 <- topartistcompleto %>% mutate(Dinero_generado = 0.004 * Streams)
+DT::datatable(topartistcompleto2)
+
+```
+
+
+La diferencia de reproducciones entre artistas genera por tanto una gran diferencia en los ingresos por perfil. El primero de la lista es nuevamente Drake con un monto total de aproximadamente 37 millones de $ generados a lo largo de su carrera como royalties de Spotify.
+Como curiosidad, podemos observar que la artista española que más arriba se encuentra es Rosalía con un total de 291 804 $ generados durante su pronta carrera, acumulando también 73 millones de reproducciones.
+
+```{r}
+#| code-fold: true
+dinero <- topartistcompleto2 %>% ggplot(aes(Streams, Dinero_generado, text = paste("Artista: ", Artist_Name))) + geom_point() + 
+  labs(title = "Dispersión de ganancias entre artistas de Spotify",
+       x = "Streams",
+       y = "Dinero generado") + theme(axis.line = element_line(linetype = "solid"),
+    plot.title = element_text(face = "italic"),
+    panel.background = element_rect(fill = "gray98"))
+ggplotly(dinero)
+
+```
+Como hemos mencionado anteriormente, la variación entre las repercusion de unos y otros es bastante grande (aún hablando del *top 1000* artistas, ya que no se tienen en cuenta artistas menores en el dataset). Así podemos observar 5 nombres que estan por delante del resto en cuanto a cifras dentro de la plataforma : Drake, Post Malone, Juice WRLD, The Weekend, XXXTENTACION.
+
+
+# Récords: Artistas que han vendido más nº1
+
+Estos son los artistas que más canciones han conseguido posicionar en el número 1 del ránking global:
+```{r}
+#| code-fold: true
+numero1 <- top10mil %>% filter(`Peak Position` == 1) %>% group_by(Artist_Name) %>% summarise(Singles_numero1 = n()) %>% slice_max(n=7, order_by = Singles_numero1, with_ties = TRUE)
+
+pp <- ggplot(numero1, aes(x=reorder(Artist_Name, -Singles_numero1), y=Singles_numero1, fill = Artist_Name)) +  geom_bar(stat="identity", fill = "steelblue", position="dodge") + labs(title = "Singles posicionados en el top 1", 
+                    x = "Artistas",
+                    y = "Número de Singles") + geom_text(aes(label = Singles_numero1), size= 5)
+
+pp + theme(axis.ticks = element_line(size = 0.6),
+    panel.grid.major = element_line(colour = "aliceblue",
+        size = 1), panel.grid.minor = element_line(colour = "aliceblue",
+        size = 1), plot.title = element_text(face = "bold"),
+    panel.background = element_rect(fill = "aliceblue"),
+    plot.background = element_rect(fill = "aliceblue",
+        colour = NA))
+
+```
+
+De nuevo Drake es el que más veces lo ha conseguido. A pesar de no contar con los temas más stremeados (como hemos visto antes), es el artista más constante de la élite en cuanto a registrar éxitos, por eso es el artista número 1, porque siempre está.
+
+# El fenómeno *Drake*
+
+Para entender mejor el caso de Drake, vamos a analizar sus canciones más exitosas (las que han estado más veces en el nº1). En total, el cantante ha llegado ha posicionar 18 singles en el número 1 del top global.
+```{r}
+#| code-fold: true
+drake1 <- top10mil %>% filter(Artist_Name == "Drake", `Peak Position` == 1) 
+drake1 <- drake1 %>% 
+mutate(`Peak Position (xTimes)` = str_sub(drake1$`Peak Position (xTimes)`,3,nchar(drake1$`Peak Position (xTimes)`)-1)) 
+
+drake1$`Peak Position (xTimes)` <- as.numeric(drake1$`Peak Position (xTimes)`)
+
+drake1 <- drake1 %>% arrange(-`Peak Position (xTimes)`) %>% select(Song_Name, `Peak Position (xTimes)`)
+
+grafico_canciones <- ggplot(drake1, aes(area = `Peak Position (xTimes)`, fill = `Peak Position (xTimes)`, label = paste(Song_Name))) + 
+  geom_treemap() +   scale_fill_gradient(low = "#8B7D6B", high = "#FFE4C4") + 
+  geom_treemap_text(colour = "black",
+                    place = "centre",
+                    size = 5,
+                    grow = TRUE) +
+  labs(title = "Mayores éxitos: Drake",
+       subtitle = "Temas que más tiempo han pasado en el número 1 de las listas")
+
+grafico_canciones
+```
+*God's Plan* y *One Dance* llegaron a estar 70 y 103 veces como la canción más escuchada del mundo en sus respectivos momentos, datos muy méritorios en un mercado donde todo avanza tan rápido.
+
+# ¿De donde son los artistas más escuchados?
+
+Pese a que Spotify es una plataforma de origen sueco, su popularidad se ha extendido por todo el globo convirtiendose en la n1 del streaming online de música. En la época actual, este servicio es clave para entender la nueva industria musical y como se promocionan los artistas en la era digital.
+
+Aún así, pese a ser un servicio globalizado, algunos países (y discográficas) tienen más peso a la hora de colocar los artistas en los ránkings globales; esto se debe a: las infraestructuras más complejas de algunos lugares frente a otros, públicos más estandarizados, idioma, tendencias culturales y socioeconómicas más favorables.etc.
+
+Para analizarlo, hemos cogido una muestra de las nacionalidades de los *750 artistas más escuchados de Spotify* :
+
+```{r, eval = TRUE, echo = TRUE}
+#| code-fold: true
+# Nos ayudamos de Chat GTP para obtener las nacionalidades y completar el dataset
+#Le pido a GTP Chat que me de las nacionalidades del top 750 artistas (-745)
+nacionalidades <- read_excel("/Users/User/Pictures/trabajo_BigData_individual/datos/nacionalidades.xlsx")
+#Agrupo por pais
+conteopais <- nacionalidades %>% group_by(Country) %>% dplyr::summarise(Artistas = n())
+#Arreglo para fusionar
+spconteo <- conteopais %>% mutate(PAÍS = Country) %>% select(PAÍS,Artistas)
+
+
+
+## definimos wd 
+
+setwd("/Users/User/Pictures/trabajo_BigData_individual/assets")
+
+shp_paises <- st_read("./Paises_Mundo.shp")
+
+### cargamos la base 
+
+
+# hacemos merge del shp y el df 
+
+shp_paises <- inner_join(shp_paises,spconteo,by="PAÍS")
+
+# mapeamos distintas variables 
+
+tmap_mode("view")
+
+#mapeamos poblaci�n total 
+
+tm_shape(shp_paises) + 
+  tm_fill("Artistas", id="PAÍS", breaks=c(1,5,10,15,20,100,600), palette = "Oranges", title="Número de artistas") +
+  tm_borders("grey25", alpha=.05) + tm_text("Artistas", size = 0.75) +
+  tm_layout("Artistas en el top 750 (por país)",
+            main.title.position = "center") + tm_view(view.legend.position = c("left","bottom") 
+            )
+
+
+
+
+
+```
+
+Claramente se aprecian dos países que despuntan sobre el resto, además de forma abrumadora. Primero Estados Unidos, país que ha explotado la popularidad de  529 artistas, muy por encima del resto. Por ponerlo en consonancia, Reino Unido, el cual es el segundo mayor exponente, ha conseguido colocar 'tan solo' a 66 artistas. Para irnos al tercer país de esta clasificación, bajariamos hasta los 17 artistas de Australia que se encuentran en el top.
+
+Por tanto, vemos que los paises anglosajones son claramente los dominantes de la industria musical global.
+
+# Palabras más utilizadas para titular las canciones
+```{r, eval = TRUE, echo = TRUE}
+#| code-fold: true
+
+#Creo un vector solo con el texto de la columna de los nombres de las canciones
+text <- top10mil$Song_Name
+# Creo un corpus y limpio el texto de espacios, números, puntuaciones o palabras como "the"
+docs <- Corpus(VectorSource(text))
+docs <- docs %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(stripWhitespace)
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeWords, stopwords("english"))
+# Encuentro la frecuencia de cada palabra
+dtm <- TermDocumentMatrix(docs) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+#lo pongo en wordcloud
+wordcloud2(data=df, size=1.6, color='random-dark')
+
+
+```
+
+En cuanto a la titulación de las canciones más exitosas, hay algunos patrones que también se repiten (está todo inventao). La temática amorosa es la más recurrente, palabras como *love*,*heart*,*girl*,*like* son algunas de las más utilizadas. Sorprende también que christmas sea la tercera más empleada, significativo también de los éxitos navideños.
+
+
+# Conclusiones
+
+La era digital ha transformado por completo la comercialización de la música, aumentando la posibilidad de popularizarla a niveles nunca vistos. Spotify, como plataforma de streaming, lo ha aprovechado y ha permitido a muchos artistas expandirse por el globo. 
+
+Aún así, no todos lo han hecho en la misma medida, encontramos autores como *Drake* o *Post Malone* que se han posicionado por encima del resto durante estos años.
+
+Por otra parte, estas diferencias también se ven acentuadas por el público objetivo de cada artista, llevando así a grandes diferencias entre las industrias musicales de cada país influidas por motivos socioculturales.
+
+## Bibliografia
+
+Spotify Top 10000 Streamed Songs. (2023, 2 enero). Kaggle. <https://www.kaggle.com/datasets/rakkesharv/spotify-top-10000-streamed-songs>
+
+Open AI. (2022). Open AI. Obtenido de <https://chat.openai.com/chat>
+
+
+
