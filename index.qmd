@@ -17,7 +17,7 @@ La web de la asignatura está [aquí](https://perezp44.github.io/intro-ds-22-23-
 
 
 
-Este trabajo lleva por título ""Análisis de la Industria Musical: Spotify", trata sobre la elaboración de una serie de métricas y gráficos que miden el éxito de los artistas dentro de la plataforma de streaming. Entre estas métricas se incluye el número total de reproducciones, veces en el top 1, dias desde el lanzamiento y otros valores sobre las canciones más escuchadas del mundo.
+Este trabajo lleva por título "Análisis de la Industria Musical: Spotify", trata sobre la elaboración de una serie de métricas y gráficos que miden el éxito de los artistas dentro de la plataforma de streaming. Entre estas métricas se incluye el número total de reproducciones, veces en el top 1, dias desde el lanzamiento y otros valores sobre las canciones más escuchadas del mundo.
 
 
 El trabajo puede verse [aquí](my_trabajo_BigData.html).
