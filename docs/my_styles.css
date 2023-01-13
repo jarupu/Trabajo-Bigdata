@@ -1,0 +1,20 @@
+/* css styles */
+
+
+/* justificar el texto */ 
+p, ul, ol {
+  text-align: justify; }    
+  
+  
+.negro {
+  color: black;
+}
+
+.green-background {
+  background-color: green;
+}
+
+.importante {
+  color: black;
+  background-color: green;
+}
